@@ -1,0 +1,32 @@
+# Dependencies — never copy host node_modules into Docker
+node_modules/
+*/node_modules/
+
+# Built output — Docker builds these fresh inside the container
+*/dist/
+
+# TypeScript incremental build state — must be excluded or tsc will skip
+# recompiling files it thinks are cached, but the dist files won't exist
+*.tsbuildinfo
+*/*.tsbuildinfo
+
+# Environment files (secrets should be passed via docker-compose env vars)
+.env
+.env.*
+!.env.example
+
+# Version control
+.git/
+.gitignore
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/

@@ -1,0 +1,152 @@
+services:
+  # ── PostgreSQL ──────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: th-postgres
+    environment:
+      POSTGRES_DB: testing_harness
+      POSTGRES_USER: ${POSTGRES_USER:-thuser}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-thpassword}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-thuser} -d testing_harness"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - th-network
+
+  # ── Redis ───────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: th-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - th-network
+
+  # ── Azurite (Azure Blob Storage Emulator) ───────────────
+  azurite:
+    image: mcr.microsoft.com/azure-storage/azurite:latest
+    container_name: th-azurite
+    ports:
+      - "10000:10000"
+      - "10001:10001"
+      - "10002:10002"
+    command: azurite --blobHost 0.0.0.0 --queueHost 0.0.0.0 --tableHost 0.0.0.0 --loose --skipApiVersionCheck
+    volumes:
+      - azurite_data:/data
+    networks:
+      - th-network
+
+  # ── Blob Container Initialization (one-shot) ────────────
+  # Creates the three storage containers on first boot.
+  # Backend waits for this to complete (service_completed_successfully).
+  azurite-init:
+    image: mcr.microsoft.com/azure-cli:latest
+    container_name: th-azurite-init
+    depends_on:
+      azurite:
+        condition: service_started
+    entrypoint: >
+      /bin/sh -c "
+        sleep 5 &&
+        export CONN='DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://azurite:10000/devstoreaccount1;' &&
+        az storage container create --name test-scripts --connection-string \"$$CONN\" &&
+        az storage container create --name test-artifacts --connection-string \"$$CONN\" &&
+        az storage container create --name recordings --connection-string \"$$CONN\" &&
+        echo 'Blob containers created successfully'
+      "
+    networks:
+      - th-network
+
+  # ── Backend API ─────────────────────────────────────────
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: th-backend
+    ports:
+      - "3010:3001"
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      DATABASE_URL: postgres://${POSTGRES_USER:-thuser}:${POSTGRES_PASSWORD:-thpassword}@postgres:5432/testing_harness
+      REDIS_URL: redis://redis:6379
+      AZURE_STORAGE_CONNECTION_STRING: >-
+        DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://azurite:10000/devstoreaccount1;
+      JWT_SECRET: ${JWT_SECRET:-dev-secret-change-in-production-min-16-chars}
+      CORS_ORIGIN: http://localhost:5173
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      azurite-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3001/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - th-network
+
+  # ── Automation Worker ───────────────────────────────────
+  automation:
+    build:
+      context: .
+      dockerfile: automation/Dockerfile
+    container_name: th-automation
+    environment:
+      NODE_ENV: production
+      REDIS_URL: redis://redis:6379
+      DATABASE_URL: postgres://${POSTGRES_USER:-thuser}:${POSTGRES_PASSWORD:-thpassword}@postgres:5432/testing_harness
+      AZURE_STORAGE_CONNECTION_STRING: >-
+        DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://azurite:10000/devstoreaccount1;
+      WORKER_CONCURRENCY: 2
+      TEST_TIMEOUT_MS: 60000
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+    networks:
+      - th-network
+
+  # ── Frontend ────────────────────────────────────────────
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    container_name: th-frontend
+    ports:
+      - "5173:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - th-network
+
+volumes:
+  postgres_data:
+  redis_data:
+  azurite_data:
+
+networks:
+  th-network:
+    driver: bridge

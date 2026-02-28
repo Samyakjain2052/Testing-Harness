@@ -1,0 +1,26 @@
+{
+  "name": "@testing-harness/automation",
+  "version": "1.0.0",
+  "private": true,
+  "main": "./dist/index.js",
+  "scripts": {
+    "build": "tsc --build",
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@azure/storage-blob": "^12.26.0",
+    "@playwright/test": "^1.50.0",
+    "@testing-harness/shared": "*",
+    "bullmq": "^5.30.0",
+    "dotenv": "^16.6.1",
+    "ioredis": "^5.4.0",
+    "pg": "^8.13.0",
+    "playwright": "^1.50.0"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.11.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  }
+}

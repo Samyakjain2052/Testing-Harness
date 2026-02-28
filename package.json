@@ -1,0 +1,42 @@
+{
+  "name": "testing-harness",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "shared",
+    "backend",
+    "automation",
+    "frontend"
+  ],
+  "scripts": {
+    "build": "npm run build:shared && npm run build:backend && npm run build:automation && npm run build:frontend",
+    "build:shared": "npm run build -w shared",
+    "build:backend": "npm run build -w backend",
+    "build:automation": "npm run build -w automation",
+    "build:frontend": "npm run build -w frontend",
+    "dev:backend": "npm run dev -w backend",
+    "dev:frontend": "npm run dev -w frontend",
+    "dev:automation": "npm run dev -w automation",
+    "lint": "eslint . --ext .ts,.tsx",
+    "format": "prettier --write \"**/*.{ts,tsx,json,md}\"",
+    "migrate:up": "npm run migrate:up -w backend",
+    "migrate:down": "npm run migrate:down -w backend",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down",
+    "docker:reset": "docker compose down -v && docker compose up -d"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "eslint": "^9.0.0",
+    "prettier": "^3.4.0",
+    "typescript": "^5.7.0"
+  },
+  "msw": {
+    "workerDirectory": [
+      "frontend\\public"
+    ]
+  },
+  "optionalDependencies": {
+    "@esbuild/win32-x64": "^0.27.3"
+  }
+}

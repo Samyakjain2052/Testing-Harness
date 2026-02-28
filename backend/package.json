@@ -1,0 +1,43 @@
+{
+  "name": "@testing-harness/backend",
+  "version": "1.0.0",
+  "private": true,
+  "main": "./dist/index.js",
+  "scripts": {
+    "build": "tsc --build",
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.js",
+    "migrate:up": "node-pg-migrate up --migrations-dir src/migrations --database-url-var DATABASE_URL",
+    "migrate:down": "node-pg-migrate down --migrations-dir src/migrations --database-url-var DATABASE_URL",
+    "migrate:create": "node-pg-migrate create --migrations-dir src/migrations"
+  },
+  "dependencies": {
+    "@testing-harness/shared": "*",
+    "@azure/storage-blob": "^12.26.0",
+    "bullmq": "^5.30.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.0",
+    "express": "^4.21.0",
+    "express-rate-limit": "^7.4.0",
+    "helmet": "^8.0.0",
+    "ioredis": "^5.4.0",
+    "jsonwebtoken": "^9.0.0",
+    "morgan": "^1.10.0",
+    "multer": "^1.4.5-lts.1",
+    "node-pg-migrate": "^7.7.0",
+    "pg": "^8.13.0",
+    "ws": "^8.18.0",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.0",
+    "@types/jsonwebtoken": "^9.0.0",
+    "@types/morgan": "^1.9.0",
+    "@types/multer": "^1.4.12",
+    "@types/pg": "^8.11.0",
+    "@types/ws": "^8.5.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  }
+}
